@@ -1,0 +1,6 @@
+neat-python>=0.92
+yfinance>=0.2.0
+pandas>=1.5.0
+numpy>=1.23.0
+matplotlib>=3.5.0
+tqdm>=4.60.0
