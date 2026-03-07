@@ -1,6 +1,6 @@
 """Unit tests for fitness.py — compute_fitness() is a pure function."""
 import pytest
-from fitness import compute_fitness
+from neat_trader.fitness import compute_fitness
 
 
 def _metrics(

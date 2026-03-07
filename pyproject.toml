@@ -23,19 +23,18 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["."]
-exclude = ["tests*", "data*", "checkpoints*"]
+where = ["src"]
 
 # ── pytest ────────────────────────────────────────────────────────────────────
 [tool.pytest.ini_options]
 testpaths  = ["tests"]
-pythonpath = ["."]          # makes root-level modules importable without install
+pythonpath = ["src"]        # makes neat_trader importable without install
 addopts    = "-v --tb=short"
 
 # ── coverage ──────────────────────────────────────────────────────────────────
 [tool.coverage.run]
-source = ["."]
-omit   = ["tests/*", "data/*", "checkpoints/*", "setup.py"]
+source = ["src/neat_trader"]
+omit   = ["tests/*", "data/*", "checkpoints/*"]
 
 [tool.coverage.report]
 exclude_lines = [

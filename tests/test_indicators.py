@@ -2,7 +2,7 @@
 import numpy as np
 import pandas as pd
 import pytest
-from indicators import compute_indicators
+from neat_trader.indicators import compute_indicators
 
 EXPECTED_COLS = {"sma5", "sma10", "slow_k", "slow_d", "willr", "macd_diff", "cci", "rsi", "adosc"}
 

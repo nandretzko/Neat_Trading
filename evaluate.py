@@ -21,8 +21,8 @@ import matplotlib.pyplot as plt
 import neat
 import numpy as np
 
-from data_loader import download_all_stocks, get_random_window
-from trading_env import TradingEnvironment
+from neat_trader.data_loader import download_all_stocks, get_random_window
+from neat_trader.trading_env import TradingEnvironment
 
 
 def load_genome_and_config(

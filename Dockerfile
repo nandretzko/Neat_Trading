@@ -7,8 +7,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy source files
-COPY *.py ./
-COPY neat_config.cfg .
+COPY src/ ./src/
+COPY train.py evaluate.py neat_config.cfg ./
 
 # Directories that should be mounted at runtime
 # (data/cache → avoid re-downloading; checkpoints → resume training)
