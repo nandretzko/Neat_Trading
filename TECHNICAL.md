@@ -151,6 +151,7 @@ with `c1 = 1.0` (disjoint coefficient) and `c2 = 0.5` (weight coefficient).
 - **Long-only** (no short selling).
 - **Fractional position sizing** — the network's `volume` output (clipped to [0, 1]) determines what fraction of available cash to invest (buy) or what fraction of held shares to sell.
 - Starting capital: **$10 000**.
+- **Transaction costs** — `COMMISSION = 0.001` (0.1 % per side). On a buy, `volume × cash × 0.001` is deducted from cash in addition to the invested amount. On a sell, the agent receives `proceeds × (1 − 0.001)`. This prevents the agent from learning to churn the portfolio for free.
 
 ### Step logic
 
@@ -182,6 +183,7 @@ At end of window, any remaining open position is force-closed at the last closin
 | `win_rate` | Fraction of trades that were profitable |
 | `exposure_time` | % of days with a non-zero position |
 | `equity_curve` | numpy array of portfolio value each day |
+| `window_days` | Number of trading days in the window (used by fitness to normalise avg_duration) |
 
 ---
 
@@ -189,23 +191,30 @@ At end of window, any remaining open position is force-closed at the last closin
 
 **File:** [fitness.py](fitness.py)
 
-Implements **Option 3** from the paper (Equation 3):
+Implements **Option 3** from the paper (Equation 3), with two calibrated deviations to ensure all terms contribute equally:
 
 ```
 Fitness(R) =   PnL
              + 1.5 × PnL_relative
              − 0.5 × max_drawdown
-             + 0.0005 × n_trades
-             − avg_duration
+             + 0.05  × n_trades
+             − 10.0  × (avg_duration / window_days)
 ```
 
-| Term | Effect |
-|---|---|
-| `PnL` | Reward absolute profit |
-| `1.5 × PnL_relative` | Strongly reward outperforming Buy & Hold |
-| `−0.5 × max_drawdown` | Penalise large drawdowns (risk control) |
-| `+0.0005 × n_trades` | Small bonus for active trading (prevents inactivity) |
-| `−avg_duration` | Penalise long holds → encourages swing-trade behaviour |
+| Term | Effect | Typical range |
+|---|---|---|
+| `PnL` | Reward absolute profit | [−20, +30] % |
+| `1.5 × PnL_relative` | Strongly reward outperforming Buy & Hold | [−30, +45] % |
+| `−0.5 × max_drawdown` | Penalise large drawdowns (risk control) | [0, −20] |
+| `+0.05 × n_trades` | Bonus for active trading (prevents inactivity) | [0, +5] for ~100 trades |
+| `−10 × (avg_duration / window_days)` | Penalise long holds, window-normalised | [0, −10] |
+
+**Why the coefficients differ from the paper:**
+
+- `+0.0005 × n_trades` → `+0.05 × n_trades`: the original coefficient contributed ~0.05 for 100 trades — effectively zero. Increased 100× to a meaningful but still secondary signal.
+- `−avg_duration` → `−10 × (avg_duration / window_days)`: raw days are window-dependent — a 30-day hold costs −30 in both a 90-day and a 365-day window, making Stage-1 and Stage-3 fitness scores incomparable across training stages. Dividing by `window_days` normalises to [0, 1], then ×10 gives comparable magnitude to the other terms.
+
+`window_days` is supplied by `TradingEnvironment` in the metrics dict (defaults to 365 if absent).
 
 ---
 
