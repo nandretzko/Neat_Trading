@@ -184,6 +184,7 @@ At end of window, any remaining open position is force-closed at the last closin
 | `exposure_time` | % of days with a non-zero position |
 | `equity_curve` | numpy array of portfolio value each day |
 | `window_days` | Number of trading days in the window (used by fitness to normalise avg_duration) |
+| `sharpe` | Annualised Sharpe ratio computed from daily equity returns (risk-free rate = 0) |
 
 ---
 
@@ -191,30 +192,35 @@ At end of window, any remaining open position is force-closed at the last closin
 
 **File:** [fitness.py](fitness.py)
 
-Implements **Option 3** from the paper (Equation 3), with two calibrated deviations to ensure all terms contribute equally:
+Risk-adjusted variant (departs from paper Eq. 3 — see rationale below):
 
 ```
-Fitness(R) =   PnL
-             + 1.5 × PnL_relative
-             − 0.5 × max_drawdown
-             + 0.05  × n_trades
-             − 10.0  × (avg_duration / window_days)
+Fitness(R) = 10 × Sharpe
+            +  1 × PnL_relative
+            − 0.5 × max_drawdown
+            + 0.05 × n_trades
+            − 10 × (avg_duration / window_days)
 ```
 
 | Term | Effect | Typical range |
 |---|---|---|
-| `PnL` | Reward absolute profit | [−20, +30] % |
-| `1.5 × PnL_relative` | Strongly reward outperforming Buy & Hold | [−30, +45] % |
+| `10 × Sharpe` | **Primary**: reward consistent risk-adjusted daily returns | [−30, +30] |
+| `1 × PnL_relative` | Alpha vs Buy & Hold — secondary signal | [−20, +20] % |
 | `−0.5 × max_drawdown` | Penalise large drawdowns (risk control) | [0, −20] |
 | `+0.05 × n_trades` | Bonus for active trading (prevents inactivity) | [0, +5] for ~100 trades |
 | `−10 × (avg_duration / window_days)` | Penalise long holds, window-normalised | [0, −10] |
 
-**Why the coefficients differ from the paper:**
+**Rationale for deviating from the paper:**
 
-- `+0.0005 × n_trades` → `+0.05 × n_trades`: the original coefficient contributed ~0.05 for 100 trades — effectively zero. Increased 100× to a meaningful but still secondary signal.
-- `−avg_duration` → `−10 × (avg_duration / window_days)`: raw days are window-dependent — a 30-day hold costs −30 in both a 90-day and a 365-day window, making Stage-1 and Stage-3 fitness scores incomparable across training stages. Dividing by `window_days` normalises to [0, 1], then ×10 gives comparable magnitude to the other terms.
+- **Raw PnL dropped → Sharpe (×10)**: PnL% rewards lucky volatile runs equally to steady gains. Sharpe = `mean_daily_ret / std_daily_ret × √252` penalises inconsistency — a strategy that gains +20% in one spike then loses it scores near zero, while one that gains steadily scores high. Multiplied by 10 to dominate the [−30, +30] range.
+- **`+0.0005` → `+0.05` for n_trades**: the original coefficient was ~0 in practice.
+- **`−avg_duration` → `−10 × (avg_duration / window_days)`**: raw days were window-dependent and incomparable across training stages (see Session 2 notes).
 
-`window_days` is supplied by `TradingEnvironment` in the metrics dict (defaults to 365 if absent).
+**Multi-window evaluation (N_EVAL = 5):**
+
+Each genome is evaluated on **5 random windows** per generation and its mean fitness is used. This reduces fitness variance drastically — a genome can no longer get lucky on a single bull-market window, making the evolutionary gradient significantly cleaner.
+
+`sharpe` and `window_days` are supplied by `TradingEnvironment` in the metrics dict (both default gracefully if absent).
 
 ---
 
@@ -230,7 +236,7 @@ Training proceeds in three stages with increasing window complexity:
 | 2 | 400 | 20 | 150 days — intermediate horizon |
 | 3 | 100 | 10 | 365 days — full-year risk management |
 
-At each generation, **every genome is evaluated on a freshly sampled random window** from a random stock. This prevents overfitting to any single ticker or time period.
+At each generation, **every genome is evaluated on 5 freshly sampled random windows** (`N_EVAL = 5`) from random stocks, and the mean fitness is used. Averaging over multiple windows reduces the fitness signal's variance by ~√5, making the evolutionary gradient significantly cleaner than single-window evaluation.
 
 ### Checkpoint and resume
 

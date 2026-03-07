@@ -1,7 +1,8 @@
 .PHONY: help install install-dev train train-fast evaluate test test-cov clean \
         docker-build docker-run
 
-PYTHON := python
+PYTHON     := python
+PYTHONPATH := src
 IMAGE  := neat-trading
 
 # ── Default target ────────────────────────────────────────────────────────────
@@ -42,14 +43,14 @@ install-dev:
 
 # ── Training ──────────────────────────────────────────────────────────────────
 train:
-	$(PYTHON) train.py
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) train.py
 
 train-fast:
-	$(PYTHON) train.py --fast
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) train.py --fast
 
 # ── Evaluation ────────────────────────────────────────────────────────────────
 evaluate:
-	$(PYTHON) evaluate.py
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) evaluate.py
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 test:

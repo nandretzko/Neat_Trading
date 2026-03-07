@@ -9,6 +9,7 @@ def _metrics(
     max_drawdown=2.0,
     n_trades=10,
     avg_duration=3.0,
+    sharpe=0.0,
 ) -> dict:
     return {
         "pnl": pnl,
@@ -16,14 +17,24 @@ def _metrics(
         "max_drawdown": max_drawdown,
         "n_trades": n_trades,
         "avg_duration": avg_duration,
+        "sharpe": sharpe,
     }
 
 
 def test_formula_exact():
-    """Fitness equals the updated Equation 3 (window-normalised duration)."""
-    m = _metrics(pnl=10.0, pnl_relative=4.0, max_drawdown=5.0, n_trades=100, avg_duration=2.0)
+    """Fitness equals the risk-adjusted formula to floating-point precision."""
+    m = _metrics(
+        pnl_relative=4.0, max_drawdown=5.0, n_trades=100,
+        avg_duration=2.0, sharpe=1.5,
+    )
     # window_days defaults to 365; avg_duration_frac = 2.0 / 365
-    expected = 10.0 + 1.5 * 4.0 - 0.5 * 5.0 + 0.05 * 100 - 10.0 * (2.0 / 365)
+    expected = (
+        10.0 * 1.5
+        + 1.0 * 4.0
+        - 0.5 * 5.0
+        + 0.05 * 100
+        - 10.0 * (2.0 / 365)
+    )
     assert compute_fitness(m) == pytest.approx(expected)
 
 
@@ -32,20 +43,22 @@ def test_returns_float():
 
 
 def test_positive_scenario():
-    """Good trading (high PnL, beats B&H, low drawdown) → positive fitness."""
-    m = _metrics(pnl=15.0, pnl_relative=8.0, max_drawdown=3.0, n_trades=20, avg_duration=5.0)
+    """Good trading (beats B&H, low drawdown, positive Sharpe) → positive fitness."""
+    m = _metrics(pnl_relative=8.0, max_drawdown=3.0, n_trades=20,
+                 avg_duration=5.0, sharpe=1.2)
     assert compute_fitness(m) > 0.0
 
 
 def test_negative_scenario():
     """Bad trading (large loss, large drawdown, long holds) → negative fitness."""
-    m = _metrics(pnl=-20.0, pnl_relative=-10.0, max_drawdown=30.0, n_trades=2, avg_duration=30.0)
+    m = _metrics(pnl_relative=-10.0, max_drawdown=30.0, n_trades=2,
+                 avg_duration=30.0, sharpe=-1.5)
     assert compute_fitness(m) < 0.0
 
 
-def test_higher_pnl_is_better():
-    low  = _metrics(pnl=5.0)
-    high = _metrics(pnl=20.0)
+def test_higher_sharpe_is_better():
+    low  = _metrics(sharpe=0.5)
+    high = _metrics(sharpe=2.0)
     assert compute_fitness(high) > compute_fitness(low)
 
 
@@ -74,5 +87,6 @@ def test_more_trades_slightly_better():
 
 
 def test_zero_metrics_returns_zero():
-    m = _metrics(pnl=0.0, pnl_relative=0.0, max_drawdown=0.0, n_trades=0, avg_duration=0.0)
+    m = _metrics(pnl=0.0, pnl_relative=0.0, max_drawdown=0.0,
+                 n_trades=0, avg_duration=0.0, sharpe=0.0)
     assert compute_fitness(m) == pytest.approx(0.0)

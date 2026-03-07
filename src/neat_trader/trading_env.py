@@ -209,6 +209,17 @@ def _compute_metrics(
     total_days = max(len(equity_curve) - 1, 1)
     exposure_time = days_in_market / total_days * 100.0
 
+    # Sharpe ratio (annualised from daily equity returns, risk-free rate = 0)
+    if len(equity_curve) > 1:
+        daily_ret = np.diff(equity_curve) / np.where(
+            equity_curve[:-1] > 1e-8, equity_curve[:-1], 1.0
+        )
+        mean_ret = float(np.mean(daily_ret))
+        std_ret  = float(np.std(daily_ret, ddof=1)) if len(daily_ret) > 1 else 0.0
+        sharpe   = (mean_ret / (std_ret + 1e-8)) * np.sqrt(252)
+    else:
+        sharpe = 0.0
+
     return {
         "pnl": pnl,
         "pnl_relative": pnl_relative,
@@ -220,4 +231,5 @@ def _compute_metrics(
         "bh_return": bh_return,
         "equity_curve": equity_curve,
         "window_days": total_days,
+        "sharpe": sharpe,
     }
