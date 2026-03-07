@@ -18,9 +18,9 @@ import pickle
 
 import neat
 
-from data_loader import download_all_stocks, get_random_window
-from fitness import compute_fitness
-from trading_env import TradingEnvironment
+from neat_trader.data_loader import download_all_stocks, get_random_window
+from neat_trader.fitness import compute_fitness
+from neat_trader.trading_env import TradingEnvironment
 
 # ── Training schedule ────────────────────────────────────────────────
 STAGE1_GENS = 1500   # 90-day windows

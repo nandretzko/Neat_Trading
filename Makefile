@@ -56,7 +56,7 @@ test:
 	pytest tests/ -v
 
 test-cov:
-	pytest tests/ -v --cov=. --cov-report=term-missing --cov-report=html
+	pytest tests/ -v --cov=src/neat_trader --cov-report=term-missing --cov-report=html
 
 # ── Docker ────────────────────────────────────────────────────────────────────
 docker-build:

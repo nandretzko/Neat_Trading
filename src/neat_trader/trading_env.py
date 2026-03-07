@@ -23,7 +23,7 @@ COMMISSION = 0.001  # 0.1 % per side
 import numpy as np
 import pandas as pd
 
-from indicators import compute_indicators
+from neat_trader.indicators import compute_indicators
 
 
 class TradingEnvironment:

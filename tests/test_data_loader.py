@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 from unittest.mock import patch
 
-from data_loader import get_random_window, download_all_stocks
+from neat_trader.data_loader import get_random_window, download_all_stocks
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -93,7 +93,7 @@ def test_multiple_calls_can_return_different_windows():
 def test_download_all_stocks_returns_dict(tmp_path, monkeypatch):
     """download_all_stocks() must return a dict[str, DataFrame]."""
     monkeypatch.chdir(tmp_path)
-    with patch("data_loader.download_stock", return_value=make_df(300)):
+    with patch("neat_trader.data_loader.download_stock", return_value=make_df(300)):
         result = download_all_stocks(tickers=["AAPL", "MSFT"])
     assert isinstance(result, dict)
     assert set(result.keys()) == {"AAPL", "MSFT"}
@@ -102,7 +102,7 @@ def test_download_all_stocks_returns_dict(tmp_path, monkeypatch):
 def test_download_all_stocks_skips_failed_tickers(tmp_path, monkeypatch):
     """Tickers that return None (failed download) must be excluded."""
     monkeypatch.chdir(tmp_path)
-    with patch("data_loader.download_stock", side_effect=[make_df(300), None]):
+    with patch("neat_trader.data_loader.download_stock", side_effect=[make_df(300), None]):
         result = download_all_stocks(tickers=["AAPL", "BAD"])
     assert "AAPL" in result
     assert "BAD" not in result

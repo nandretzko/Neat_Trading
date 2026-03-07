@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 from unittest.mock import MagicMock
 
-from trading_env import TradingEnvironment, _buy, _sell
+from neat_trader.trading_env import TradingEnvironment, _buy, _sell
 
 
 REQUIRED_METRIC_KEYS = {
