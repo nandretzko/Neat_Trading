@@ -8,8 +8,17 @@ so this implementation focuses on the long side.
 Portfolio state inputs fed to the NEAT network each step:
     long_position  = (shares * price) / total_assets   ∈ [0, 1]
     short_position = 0  (long-only)
+
+Transaction costs:
+    COMMISSION = 0.1 % per side (buy or sell).  Applied to the traded value
+    so that overtrading is penalised realistically.  Without costs the agent
+    can learn to churn the portfolio for free, inflating n_trades and
+    producing fitness scores that do not generalise to live trading.
 """
+
 from __future__ import annotations
+
+COMMISSION = 0.001  # 0.1 % per side
 
 import numpy as np
 import pandas as pd
@@ -136,9 +145,10 @@ def _buy(
     if cash < 1e-4:
         return cash, shares, open_trade
     invest = volume * cash
+    commission = invest * COMMISSION
     new_shares = invest / price
     shares += new_shares
-    cash -= invest
+    cash -= invest + commission
     if open_trade is None:
         open_trade = {"entry_day": day, "entry_price": price}
     return cash, shares, open_trade
@@ -156,7 +166,8 @@ def _sell(
     if shares < 1e-8:
         return cash, shares, trades, open_trade
     sell_shares = volume * shares
-    cash += sell_shares * price
+    proceeds = sell_shares * price
+    cash += proceeds * (1.0 - COMMISSION)
     shares -= sell_shares
     if open_trade is not None and sell_shares > 0:
         ret = (price - open_trade["entry_price"]) / (open_trade["entry_price"] + 1e-8)
@@ -208,4 +219,5 @@ def _compute_metrics(
         "exposure_time": exposure_time,
         "bh_return": bh_return,
         "equity_curve": equity_curve,
+        "window_days": total_days,
     }

@@ -10,6 +10,7 @@ from trading_env import TradingEnvironment, _buy, _sell
 REQUIRED_METRIC_KEYS = {
     "pnl", "bh_return", "pnl_relative", "max_drawdown",
     "n_trades", "avg_duration", "win_rate", "exposure_time", "equity_curve",
+    "window_days",
 }
 
 
@@ -56,10 +57,10 @@ def test_hold_strategy_zero_trades():
 
 
 def test_flat_price_buy_and_hold_zero_pnl():
-    """Buying everything on a flat-price series should still yield 0% PnL."""
+    """Buying on a flat-price series yields slightly negative PnL due to commission."""
     env = TradingEnvironment(make_ohlcv(100))
     metrics = env.run(make_net(buy=1.0, sell=0.0, vol=1.0))
-    assert metrics["pnl"] == pytest.approx(0.0, abs=1e-6)
+    assert metrics["pnl"] <= 0.0
 
 
 def test_bh_return_zero_on_flat_price():
@@ -105,8 +106,10 @@ def test_win_rate_in_unit_interval():
 # ── _buy() helper ─────────────────────────────────────────────────────────────
 
 def test_buy_invests_fraction_of_cash():
+    # invest = 0.5 * 10_000 = 5_000; commission = 5_000 * 0.001 = 5
+    # cash = 10_000 - 5_000 - 5 = 4_995; shares = 5_000 / 100 = 50
     cash, shares, trade = _buy(10_000.0, 0.0, 100.0, 0.5, 10, None)
-    assert cash   == pytest.approx(5_000.0)
+    assert cash   == pytest.approx(4_995.0)
     assert shares == pytest.approx(50.0)
 
 
@@ -131,9 +134,11 @@ def test_buy_noop_when_no_cash():
 # ── _sell() helper ────────────────────────────────────────────────────────────
 
 def test_sell_full_position():
+    # proceeds = 100 * 100 = 10_000; commission = 10_000 * 0.001 = 10
+    # cash = 0 + 10_000 - 10 = 9_990
     open_trade = {"entry_day": 5, "entry_price": 80.0}
     cash, shares, trades, ot = _sell(0.0, 100.0, 100.0, 1.0, 10, [], open_trade)
-    assert cash   == pytest.approx(10_000.0)
+    assert cash   == pytest.approx(9_990.0)
     assert shares == pytest.approx(0.0)
 
 

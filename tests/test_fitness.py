@@ -20,9 +20,10 @@ def _metrics(
 
 
 def test_formula_exact():
-    """Fitness equals the paper's Equation 3 to floating-point precision."""
+    """Fitness equals the updated Equation 3 (window-normalised duration)."""
     m = _metrics(pnl=10.0, pnl_relative=4.0, max_drawdown=5.0, n_trades=100, avg_duration=2.0)
-    expected = 10.0 + 1.5 * 4.0 - 0.5 * 5.0 + 0.0005 * 100 - 2.0
+    # window_days defaults to 365; avg_duration_frac = 2.0 / 365
+    expected = 10.0 + 1.5 * 4.0 - 0.5 * 5.0 + 0.05 * 100 - 10.0 * (2.0 / 365)
     assert compute_fitness(m) == pytest.approx(expected)
 
 
