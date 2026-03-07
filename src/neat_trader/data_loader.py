@@ -46,6 +46,9 @@ def download_stock(
         df = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=True)
         if len(df) < 200:
             return None
+        # yfinance ≥ 0.2.38 returns a MultiIndex (metric, ticker) — flatten it
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
         df = df[["Open", "High", "Low", "Close", "Volume"]].copy()
         df.dropna(inplace=True)
         with open(cache_path, "wb") as f:

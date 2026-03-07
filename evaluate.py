@@ -126,7 +126,7 @@ def plot_comparison(results: list[dict], out: str = "comparison_plot.png") -> No
     fig.tight_layout()
     fig.savefig(out, dpi=120)
     plt.close(fig)
-    print(f"\n  Scatter plot saved → {out}")
+    print(f"\n  Scatter plot saved ->{out}")
 
 
 def plot_equity_sample(results: list[dict], out: str = "equity_sample.png") -> None:
@@ -145,7 +145,7 @@ def plot_equity_sample(results: list[dict], out: str = "equity_sample.png") -> N
     fig.tight_layout()
     fig.savefig(out, dpi=120)
     plt.close(fig)
-    print(f"  Equity curve saved → {out}")
+    print(f"  Equity curve saved ->{out}")
 
 
 # ── Entry point ───────────────────────────────────────────────────────

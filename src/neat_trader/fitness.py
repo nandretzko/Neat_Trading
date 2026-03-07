@@ -1,44 +1,47 @@
 """
-Multi-objective fitness function — Option 3 from the paper (Eq. 3):
+Fitness function — risk-adjusted variant of Eq. 3 (arXiv 2501.14736).
 
-    Fitness3(R) = PnL
-                + 1.5 × PnL_relative
-                − 0.5 × max(drawdown)
-                + 0.05 × #trades          (was 0.0005 — effectively zero)
-                − 10 × avg_duration_frac  (was raw days — dominated fitness)
+    Fitness = 10 × Sharpe              (primary: risk-adjusted daily returns)
+            +  1 × PnL_relative        (alpha vs Buy & Hold, %)
+            − 0.5 × max_drawdown       (risk penalty, %)
+            + 0.05 × n_trades          (activity bonus)
+            − 10 × avg_duration_frac   (long-hold penalty, window-normalised)
 
-All terms are now of comparable magnitude (roughly [-50, +50]):
-  • PnL / PnL_relative  : typically [-20, +30] %
-  • max_drawdown penalty : typically [0, -20]
-  • activity bonus       : up to +5 for ~100 trades (0.05 × 100)
-  • long-hold penalty    : avg_duration / window_days ∈ [0, 1], scaled by -10
+Why Sharpe instead of raw PnL:
+  Raw PnL rewards lucky volatile runs equally to steady gains.  Sharpe
+  (mean_daily_return / std_daily_return × √252) penalises inconsistency,
+  driving the agent toward strategies that profit steadily rather than
+  in one lucky spike.  A Sharpe of 1.0 (roughly achievable by good quant
+  funds) contributes +10, dominating the other terms only when paired with
+  positive alpha (PnL_relative > 0).
 
-The raw `- avg_duration` (in days) was window-dependent: a 30-day hold
-cost -30 in a 90-day window but also -30 in a 365-day window, making
-Stage-1 fitness incomparable to Stage-3 fitness.  Normalising by
-`window_days` removes this artefact.
+Term magnitudes (approximate):
+  • 10 × Sharpe          : [-30, +30]  (Sharpe ∈ [-3, +3] for realistic strats)
+  • 1 × PnL_relative     : [-20, +20]  (secondary alpha signal)
+  • −0.5 × max_drawdown  : [0,   −20]  (risk)
+  • +0.05 × n_trades     : [0,    +5]  (activity, ~100 trades max)
+  • −10 × dur_frac       : [0,   −10]  (hold penalty, normalised)
 
-`window_days` is supplied by TradingEnvironment via the metrics dict.
+`window_days` and `sharpe` are supplied by TradingEnvironment via the
+metrics dict; both default gracefully if absent.
 """
 
 
 def compute_fitness(metrics: dict) -> float:
-    pnl          = metrics["pnl"]           # % return of the strategy
-    pnl_relative = metrics["pnl_relative"]  # strategy return − B&H return
+    pnl_relative = metrics["pnl_relative"]  # strategy return − B&H return (%)
     max_dd       = metrics["max_drawdown"]  # max drawdown %
     n_trades     = metrics["n_trades"]
     avg_duration = metrics["avg_duration"]  # average hold in days
-    window_days  = metrics.get("window_days", 365)  # trading days in window
+    window_days  = metrics.get("window_days", 365)
+    sharpe       = metrics.get("sharpe", 0.0)
 
-    # Normalise hold duration to [0, 1]: fraction of the window spent per trade.
-    # A hold spanning the full window scores -10; a 1-day trade scores ≈ 0.
     avg_duration_frac = avg_duration / (window_days + 1e-8)
 
     fitness = (
-        pnl                        # absolute return (%)
-        + 1.5 * pnl_relative       # alpha vs buy-and-hold (%)
-        - 0.5 * max_dd             # risk penalty (%)
-        + 0.05 * n_trades          # activity bonus (≈ +0.05 per trade)
+        10.0 * sharpe              # risk-adjusted return (dominant term)
+        + 1.0 * pnl_relative       # alpha vs buy-and-hold (%)
+        - 0.5 * max_dd             # drawdown penalty (%)
+        + 0.05 * n_trades          # activity bonus
         - 10.0 * avg_duration_frac # long-hold penalty, window-normalised
     )
     return float(fitness)

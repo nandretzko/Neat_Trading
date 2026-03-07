@@ -27,6 +27,11 @@ STAGE1_GENS = 1500   # 90-day windows
 STAGE2_GENS = 400    # 150-day windows
 STAGE3_GENS = 100    # 365-day windows
 
+# Number of random windows sampled per genome per generation.
+# Averaging over multiple windows reduces fitness variance dramatically:
+# a good genome no longer gets lucky/unlucky on a single bull/bear window.
+N_EVAL = 5
+
 CHECKPOINT_DIR = "checkpoints"
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
@@ -38,14 +43,24 @@ _window_days: int = 90
 # ── Genome evaluation ────────────────────────────────────────────────
 
 def eval_genome(genome, config) -> float:
-    """Evaluate a single genome on a randomly sampled stock window."""
+    """Evaluate a genome on N_EVAL random windows and return the mean fitness.
+
+    Averaging over multiple windows dramatically reduces the variance of the
+    fitness signal: a genome can no longer get lucky on a single bull-market
+    window, and the evolutionary pressure is much more stable.
+    """
     net = neat.nn.RecurrentNetwork.create(genome, config)
-    df, _ = get_random_window(_stocks, _window_days)
-    if df is None or len(df) < _window_days + TradingEnvironment.WARMUP:
+    scores = []
+    for _ in range(N_EVAL):
+        df, _ = get_random_window(_stocks, _window_days)
+        if df is None or len(df) < _window_days + TradingEnvironment.WARMUP:
+            continue
+        env = TradingEnvironment(df)
+        metrics = env.run(net)
+        scores.append(compute_fitness(metrics))
+    if not scores:
         return -1_000.0
-    env = TradingEnvironment(df)
-    metrics = env.run(net)
-    return compute_fitness(metrics)
+    return sum(scores) / len(scores)
 
 
 def eval_genomes(genomes, config) -> None:
@@ -137,8 +152,8 @@ def run_training(fast: bool = False) -> None:
     with open("neat_config_used.pkl", "wb") as f:
         pickle.dump(config, f)
 
-    print("\n✓ Training complete.")
-    print(f"  Best genome saved  → best_genome.pkl")
+    print("\nTraining complete.")
+    print(f"  Best genome saved  -> best_genome.pkl")
     print(f"  Best fitness       = {winner.fitness:.4f}")
 
     # Copy the most recently written ckpt-* file to checkpoints/latest so the

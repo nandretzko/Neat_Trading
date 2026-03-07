@@ -10,7 +10,7 @@ from neat_trader.trading_env import TradingEnvironment, _buy, _sell
 REQUIRED_METRIC_KEYS = {
     "pnl", "bh_return", "pnl_relative", "max_drawdown",
     "n_trades", "avg_duration", "win_rate", "exposure_time", "equity_curve",
-    "window_days",
+    "window_days", "sharpe",
 }
 
 
