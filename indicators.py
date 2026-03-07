@@ -83,13 +83,16 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
 
     # ------------------------------------------------------------------ #
     # ADOSC — Chaikin A/D Oscillator                                      #
-    # Paper: AD(t) = AD(t-1) + CMFV(t),  CMFV = (H-C_{t-1})/(H-L)*V    #
+    # AD(t) = AD(t-1) + CMFV(t)                                          #
+    # CMFV (Money Flow Volume) — standard formula:                        #
+    #   CLV = ((Close - Low) - (High - Close)) / (High - Low)            #
+    #       = (2*Close - High - Low) / (High - Low)                       #
+    #   CMFV = CLV * Volume                                               #
     # Oscillator = EMA3(AD) - EMA10(AD), normalised by rolling std       #
     # ------------------------------------------------------------------ #
-    c_prev = np.roll(close, 1)
-    c_prev[0] = close[0]
     hl_rng = np.where((high - low) > 1e-8, high - low, 1e-8)
-    cmfv   = (high - c_prev) / hl_rng * vol
+    clv    = (2.0 * close - high - low) / hl_rng   # Close Location Value ∈ [-1, 1]
+    cmfv   = clv * vol
     ad     = np.cumsum(cmfv)
     ema3_ad  = pd.Series(ad).ewm(span=3,  adjust=False).mean().values
     ema10_ad = pd.Series(ad).ewm(span=10, adjust=False).mean().values

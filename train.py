@@ -18,10 +18,9 @@ import pickle
 
 import neat
 
-from data_loader import download_all_stocks
+from data_loader import download_all_stocks, get_random_window
 from fitness import compute_fitness
 from trading_env import TradingEnvironment
-from data_loader import get_random_window
 
 # ── Training schedule ────────────────────────────────────────────────
 STAGE1_GENS = 1500   # 90-day windows
@@ -57,11 +56,20 @@ def eval_genomes(genomes, config) -> None:
 # ── Training loop ────────────────────────────────────────────────────
 
 class StageReporter(neat.reporting.BaseReporter):
-    """Prints current training stage at each generation."""
+    """Prints current training stage at each generation.
+
+    Receives the actual generation boundaries so it works correctly in both
+    full and --fast modes.
+    """
+
+    def __init__(self, s1: int, s2: int) -> None:
+        self._s1 = s1          # end of stage 1 (exclusive)
+        self._s1s2 = s1 + s2   # end of stage 2 (exclusive)
+
     def start_generation(self, gen: int) -> None:
-        if gen < STAGE1_GENS:
+        if gen < self._s1:
             stage, w = 1, 90
-        elif gen < STAGE1_GENS + STAGE2_GENS:
+        elif gen < self._s1s2:
             stage, w = 2, 150
         else:
             stage, w = 3, 365
@@ -99,7 +107,7 @@ def run_training(fast: bool = False) -> None:
 
     pop.add_reporter(neat.StdOutReporter(True))
     pop.add_reporter(neat.StatisticsReporter())
-    pop.add_reporter(StageReporter())
+    pop.add_reporter(StageReporter(s1, s2))
     pop.add_reporter(
         neat.Checkpointer(
             generation_interval=50,
@@ -133,9 +141,17 @@ def run_training(fast: bool = False) -> None:
     print(f"  Best genome saved  → best_genome.pkl")
     print(f"  Best fitness       = {winner.fitness:.4f}")
 
-    # Save final checkpoint
-    pop_checkpoint = os.path.join(CHECKPOINT_DIR, "latest")
-    neat.Checkpointer(1).save_checkpoint(config, pop, pop.species, pop.generation)
+    # Copy the most recently written ckpt-* file to checkpoints/latest so the
+    # next run can restore it. neat.Checkpointer appends the generation number
+    # to the prefix, so we cannot rely on a predictable fixed filename.
+    import glob
+    import shutil
+
+    ckpt_files = glob.glob(os.path.join(CHECKPOINT_DIR, "ckpt-*"))
+    if ckpt_files:
+        newest = max(ckpt_files, key=os.path.getmtime)
+        shutil.copy2(newest, os.path.join(CHECKPOINT_DIR, "latest"))
+        print(f"  Latest checkpoint → checkpoints/latest  (copied from {os.path.basename(newest)})")
 
 
 # ── Entry point ───────────────────────────────────────────────────────
